@@ -1,0 +1,3 @@
+# Hideyoshi
+
+Discord relay server
