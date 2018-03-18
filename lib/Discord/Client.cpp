@@ -60,6 +60,18 @@ namespace Hideyoshi {
             }
         }
 
+        void Client::sendMessage(string channelID, json body) {
+            string url = static_cast<string>(API_BASE) + "/channels/" + channelID + "/messages";
+            map<string, string> headers = {
+                {"Authorization", "Bot " + token}, 
+                {"Content-Type", "application/json"}
+            };
+
+            string *res = Http::post(url, headers, body.dump());
+
+            cout << *res << endl;
+        }
+
         void Client::onMessage(WebSocket<CLIENT> *ws, string msg) {
             this->ws = ws;
             json j = json::parse(msg);
@@ -77,16 +89,17 @@ namespace Hideyoshi {
                     }
 
                     if (t == "READY") {
-                        json user = d.at("user").get<json>();
+                        user = d.at("user").get<json>();
 
-                        this->user.username = user.at("username").get<string>();
-                        this->user.id = user.at("id").get<string>();
-                        this->user.discriminator = user.at("discriminator").get<string>();
-                        this->user.bot = user.at("bot").get<bool>();
-                        this->user.avatar = "https://cdn.discordapp.com/avatars/" + this->user.id + "/" + user.at("avatar").get<string>() + ".png";
+                        json msg = {{"content", "Hello world!"}};
+
+                        sendMessage("236571184244719617", msg);
+                    } else if (t == "GUILD_CREATE") {
+                        guilds.push_back(d);
                     }
 
                     cout << "Event: " << t << endl;
+                    cout << "Guilds: " << guilds.size() << endl;
                     // cout << "Data: " << d.dump(4) << endl;
                 }
 

@@ -7,11 +7,10 @@
 
 #include <string>
 #include <thread>
+#include <map>
 
 #include <nlohmann/json.hpp>
 #include <uWS/uWS.h>
-
-#include "./struct/User.hpp"
 
 using namespace std;
 using namespace uWS;
@@ -29,12 +28,16 @@ namespace Hideyoshi {
                 json getGateway(bool);
                 void onMessage(WebSocket<CLIENT> *, string);
             public:
-                user_t user;
+                json user;
+                vector<json> guilds;
+                vector<json> users;
+
                 string token;
                 int shards;
 
                 Client(string);
                 void connect();
+                void sendMessage(string, json);
         };
     }
 }
