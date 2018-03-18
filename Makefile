@@ -1,4 +1,7 @@
-CC = g++
+ENV   = LD_LIBRARY_PATH=/usr/local/lib:/usr/local/lib64 \
+	LIBRARY_PATH=/usr/local/lib:/usr/local/lib64
+	
+CC    = g++
 FILES = lib/Http.cpp \
 	lib/main.cpp \
 	lib/Discord/Client.cpp
@@ -10,8 +13,7 @@ FLAGS = -o hideyoshi \
 	-lcurl \
 	-lcurlpp \
 	-lz \
-	-luWS \
-	-lboost_system
+	-luWS
 
 all:
-	${CC} ${FILES} ${FLAGS}
+	${ENV} ${CC} ${FILES} ${FLAGS}

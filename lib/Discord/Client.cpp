@@ -2,8 +2,6 @@
 #include "Client.hpp"
 #include "OPCodes.hpp"
 
-#include <boost/asio.hpp>
-
 #include <iostream>
 
 namespace Hideyoshi {
@@ -47,11 +45,25 @@ namespace Hideyoshi {
             h.run();
         }
 
+        static int seq = 0;
+
+        static void doHeartbeat(int heartbeat, WebSocket<CLIENT> *ws) {
+            while (true) {
+                usleep(heartbeat * 1000);
+                json toSend = {
+                    {"op", OPCodes::HEARTBEAT},
+                    {"d", seq}
+                };
+
+                cout << "Hearbeat: " << toSend.dump(4) << endl;
+                ws->send(toSend.dump().c_str());
+            }
+        }
+
         void Client::onMessage(WebSocket<CLIENT> *ws, string msg) {
+            this->ws = ws;
             json j = json::parse(msg);
             json toSend;
-
-            cout << j.dump(4) << endl;
             
             int op = j.at("op").get<int>();
 
@@ -59,6 +71,10 @@ namespace Hideyoshi {
                 case OPCodes::DISPATCH: {
                     string t = j.at("t").get<string>();
                     json d = j.at("d").get<json>();
+
+                    if (!j.at("s").is_null()) {
+                        seq = j.at("s").get<int>();
+                    }
 
                     if (t == "READY") {
                         json user = d.at("user").get<json>();
@@ -71,7 +87,7 @@ namespace Hideyoshi {
                     }
 
                     cout << "Event: " << t << endl;
-                    cout << "Data: " << d.dump(4) << endl;
+                    // cout << "Data: " << d.dump(4) << endl;
                 }
 
                 case OPCodes::HELLO: {
@@ -100,15 +116,8 @@ namespace Hideyoshi {
                         ws->send(toSend.dump().c_str());
                         ready = true;
 
-                        // TODO find a way to set a timer w/o blocking everything
-                        boost::asio::io_context i;
-                        boost::asio::deadline_timer timer(i, boost::posix_time::milliseconds(heartbeatInterval));
-                        timer.async_wait([ws](boost::system::error_code ec) {
-                            json toSend = {{"op", OPCodes::HEARTBEAT_ACK}};
-
-                            ws->send(toSend.dump().c_str());
-                        });
-                        i.run();
+                        thread hbThread(doHeartbeat, heartbeatInterval, ws);
+                        hbThread.detach();
                     }
                 }
             }

@@ -6,6 +6,8 @@
 #endif
 
 #include <string>
+#include <thread>
+
 #include <nlohmann/json.hpp>
 #include <uWS/uWS.h>
 
@@ -20,12 +22,12 @@ namespace Hideyoshi {
         class Client {
             private:
                 Hub h;
+                WebSocket<CLIENT> *ws;
                 bool ready;
                 int heartbeatInterval;
 
                 json getGateway(bool);
                 void onMessage(WebSocket<CLIENT> *, string);
-
             public:
                 user_t user;
                 string token;
