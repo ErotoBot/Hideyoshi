@@ -24,10 +24,19 @@ namespace Hideyoshi {
             return json::parse(*body);
         }
 
+        void Client::onEvent(function<void (WebSocket<CLIENT> *ws, json data)> handler) {
+            this->eventHandler = handler;
+        }
+
         void Client::connect() {
             json body = getGateway(true);
             this->shards = body.at("shards").get<int>();
             string url = body.at("url").get<string>();
+
+            h.onConnection([this](WebSocket<CLIENT> *ws, HttpRequest /* req */) {
+                this->ws = ws;
+                cout << "(DISCORD) [INFO] Connected to Discord" << endl;
+            });
 
             h.onMessage([this](WebSocket<CLIENT> *ws, char *msg, size_t len, OpCode op) {
                 string message = static_cast<string>(msg).substr(0, len);
@@ -35,10 +44,13 @@ namespace Hideyoshi {
                 this->onMessage(ws, message);
             });
 
-            h.onDisconnection([](WebSocket<CLIENT> *ws, int code, char *msg, size_t len) {
+            h.onDisconnection([this](WebSocket<CLIENT> *ws, int code, char *msg, size_t len) {
                 string message = static_cast<string>(msg).substr(0, len);
 
-                cout << "Disconnected: "  << message << " (" << code << ")" << endl;
+                this->hbThread.~thread();
+
+                cout << "(DISCORD) [INFO] Disconnected from Discord: "  << message << " (" << code << ")" << endl;
+
             });
 
             h.connect(url);
@@ -55,7 +67,7 @@ namespace Hideyoshi {
                     {"d", seq}
                 };
 
-                cout << "Hearbeat: " << toSend.dump(4) << endl;
+                cout << "(DISCORD) [DEBUG] Sent heartbeat to Discord" << endl;
                 ws->send(toSend.dump().c_str());
             }
         }
@@ -73,8 +85,12 @@ namespace Hideyoshi {
         }
 
         void Client::onMessage(WebSocket<CLIENT> *ws, string msg) {
-            this->ws = ws;
             json j = json::parse(msg);
+            
+            if (this->eventHandler != NULL) {
+                this->eventHandler(ws, j);
+            }
+
             json toSend;
             
             int op = j.at("op").get<int>();
@@ -90,17 +106,11 @@ namespace Hideyoshi {
 
                     if (t == "READY") {
                         user = d.at("user").get<json>();
-
-                        json msg = {{"content", "Hello world!"}};
-
-                        sendMessage("236571184244719617", msg);
                     } else if (t == "GUILD_CREATE") {
                         guilds.push_back(d);
+                    } else {
+                        cout << "(DISCORD) [WARN] Unhandled event: " << t << endl;
                     }
-
-                    cout << "Event: " << t << endl;
-                    cout << "Guilds: " << guilds.size() << endl;
-                    // cout << "Data: " << d.dump(4) << endl;
                 }
 
                 case OPCodes::HELLO: {
@@ -129,7 +139,7 @@ namespace Hideyoshi {
                         ws->send(toSend.dump().c_str());
                         ready = true;
 
-                        thread hbThread(doHeartbeat, heartbeatInterval, ws);
+                        hbThread = thread(doHeartbeat, heartbeatInterval, ws);
                         hbThread.detach();
                     }
                 }

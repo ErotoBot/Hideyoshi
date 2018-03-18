@@ -23,7 +23,9 @@ namespace Hideyoshi {
                 Hub h;
                 WebSocket<CLIENT> *ws;
                 bool ready;
+                thread hbThread;
                 int heartbeatInterval;
+                function<void (WebSocket<CLIENT> *, json)> eventHandler;
 
                 json getGateway(bool);
                 void onMessage(WebSocket<CLIENT> *, string);
@@ -38,6 +40,7 @@ namespace Hideyoshi {
                 Client(string);
                 void connect();
                 void sendMessage(string, json);
+                void onEvent(function<void (WebSocket<CLIENT> *, json)>);
         };
     }
 }
