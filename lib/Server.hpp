@@ -3,6 +3,7 @@
 
 #include <list>
 #include <string>
+#include <queue>
 #include <uWS/uWS.h>
 
 #include "Discord/Client.hpp"
@@ -17,6 +18,7 @@ namespace Hideyoshi {
             Discord::Client *client;
 
             list<WebSocket<SERVER> *> socks;
+            queue<json> messageQueue;
             void onMessage(WebSocket<SERVER> *, string);
             void onConnect(WebSocket<SERVER> *);
             void onClose(WebSocket<SERVER> *, string, int);

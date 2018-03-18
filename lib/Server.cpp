@@ -8,35 +8,48 @@ namespace Hideyoshi {
         this->client = new Discord::Client(token);
 
         this->h.onConnection([this](WebSocket<SERVER> *ws, HttpRequest req) {
-            Header auth = req.getHeader("Authentication");
+            Header auth = req.getHeader("authentication");
 
-            if (auth != 0) {
+            if (auth.value == NULL) {
                 ws->close();
             } else {
-                this->socks.push_back(ws);
+                socks.push_back(ws);
             }
 
             cout << "(SERVER) [INFO] New connection from " << ws->getAddress().address << endl;
         });
 
         this->h.onDisconnection([this](WebSocket<SERVER> *ws, int code, char *msg, size_t len) {
-            this->socks.erase(remove(this->socks.begin(), this->socks.end(), ws), this->socks.end());
+            socks.erase(remove(socks.begin(), socks.end(), ws), socks.end());
         });
 
         this->client->onEvent([this](WebSocket<CLIENT> *ws, json payload) {
-            for (WebSocket<SERVER> *sock : this->socks) {
-                sock->send(payload.dump().c_str());
+            if (socks.empty()) {
+                messageQueue.push(payload);
+            } else {
+                for (int i = 0; i < (int) messageQueue.size(); i++) {
+                    json msg = messageQueue.front();
+                    messageQueue.pop();
+
+                    for (WebSocket<SERVER> *sock : socks) {
+                        sock->send(msg.dump().c_str());
+                    }
+                }
+
+                for (WebSocket<SERVER> *sock : socks) {
+                    sock->send(payload.dump().c_str());
+                }
             }
         });
 
-        thread discordThread([this]() {
-            this->client->connect();
-        });
-
-        discordThread.detach();
-
         if (h.listen(port)) {
-            h.run();;
+            thread discordThread([this]() {
+                client->connect();
+            });
+
+            discordThread.detach();
+
+            h.run();
         }
     }
 }
